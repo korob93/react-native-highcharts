@@ -32,11 +32,10 @@ const setupChart = `(cfg, options, stock) => {
         return value;
     });
     Highcharts.setOptions(options);
-    const chart = Highcharts[stock ? 'stockChart' : 'chart']('container', config);
     document.addEventListener('message', ({data}) => {
         const {id, method, params = [], result, error} = JSON.parse(data);
         if (!!error) {
-            this.callbacks[id] && this.callbacks[id].reject(error);
+            callbacks[id] && callbacks[id].reject(error);
         } else if (!!method) {
             try {
                 const parts = method.split(/[.\\[\\]]/).filter(val => !!val);
@@ -50,9 +49,10 @@ const setupChart = `(cfg, options, stock) => {
                 __REACT_WEB_VIEW_BRIDGE.postMessage(JSON.stringify({id, error: e.message}));
             }
         } else {
-            this.callbacks[id] && this.callbacks[id].resolve(result);
+            callbacks[id] && callbacks[id].resolve(result);
         }
     });
+    let chart;
     document.reactNativeHichartsMethod = async (method, ...params) => {
         const id = ++rpcId;
         const result = await new Promise((resolve, reject) => {
@@ -63,6 +63,7 @@ const setupChart = `(cfg, options, stock) => {
         delete callbacks[id];
         return result;
     }
+    chart = Highcharts[stock ? 'stockChart' : 'chart']('container', config);
 }`;
 
 class ChartWeb extends Component {
