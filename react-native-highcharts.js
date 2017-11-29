@@ -18,10 +18,10 @@ const stringifyConfig = cfg => JSON.stringify(
     })
 );
 
-const setupChart = `(cfg, options, stock) => {
+const setupChart = `(cfg, options, stock, wrapper) => {
     const callbacks = {};
     let rpcId = 0;
-    const config = JSON.parse(cfg, (key, value) => {
+    const parseConfig = config => JSON.parse(config, (key, value) => {
         if(typeof value === 'string'){
             const match = value.match(/jsfunction:\\/\\/\\(([\\s\\S]*)\\)/);
             if (!!match) {
@@ -31,6 +31,9 @@ const setupChart = `(cfg, options, stock) => {
         }
         return value;
     });
+    const wrapperCallback = parseConfig(wrapper) || (() => {});
+    wrapperCallback(Highcharts);
+    const config = parseConfig(cfg);
     Highcharts.setOptions(options);
     document.addEventListener('message', ({data}) => {
         const {id, method, params = [], result, error} = JSON.parse(data);
@@ -105,7 +108,7 @@ class ChartWeb extends Component {
                     ${this.props.more ? '<script src="https://code.highcharts.com/highcharts-more.js"></script>' : ''}
                     ${this.props.exporting ? '<script src="https://code.highcharts.com/modules/exporting.js"></script>' : ''}
                     <script>                        
-                        $(() => {(${setupChart})(${stringifyConfig(this.props.config)}, ${JSON.stringify(this.props.options)}, ${this.props.stock});
+                        $(() => {(${setupChart})(${stringifyConfig(this.props.config)}, ${JSON.stringify(this.props.options)}, ${this.props.stock}, ${stringifyConfig(this.props.wrapper)});
                     });
                     </script>
                 </head>
