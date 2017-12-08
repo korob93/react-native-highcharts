@@ -22,8 +22,23 @@ const stringifyConfig = cfg => JSON.stringify(
 );
 
 const setupChart = `(cfg, options, stock, wrapper) => {
+    const queue = [];
     const callbacks = {};
     let rpcId = 0;
+    const postMessage = (msg) => {
+        if(__REACT_WEB_VIEW_BRIDGE && __REACT_WEB_VIEW_BRIDGE.postMessage){
+            __REACT_WEB_VIEW_BRIDGE.postMessage(msg);
+        } else {
+            queue.push(msg);
+        }
+    }
+    const checkBridge = () => {
+        if(__REACT_WEB_VIEW_BRIDGE && __REACT_WEB_VIEW_BRIDGE.postMessage){
+            queue.forEach(postMessage);
+        } else {
+            setTimeout(checkBridge, 100);
+        }
+    };
     const parseConfig = config => JSON.parse(config, (key, value) => {
         if(typeof value === 'string'){
             const match = value.match(/jsfunction:\\/\\/\\(([\\s\\S]*)\\)/);
@@ -50,9 +65,9 @@ const setupChart = `(cfg, options, stock, wrapper) => {
                     current = current[parts[i]];
                 }
                 const res = current[parts[parts.length - 1]](...params);
-                __REACT_WEB_VIEW_BRIDGE.postMessage(JSON.stringify({id, result: JSON.stringify(res)}));
+                postMessage(JSON.stringify({id, result: JSON.stringify(res)}));
             } catch (e) {
-                __REACT_WEB_VIEW_BRIDGE.postMessage(JSON.stringify({id, error: e.message}));
+                postMessage(JSON.stringify({id, error: e.message}));
             }
         } else {
             callbacks[id] && callbacks[id].resolve(result);
@@ -63,12 +78,13 @@ const setupChart = `(cfg, options, stock, wrapper) => {
         const id = ++rpcId;
         const result = await new Promise((resolve, reject) => {
             callbacks[id] = {resolve, reject};
-            __REACT_WEB_VIEW_BRIDGE.postMessage(JSON.stringify({id, method, params}));
+            postMessage(JSON.stringify({id, method, params}));
             setTimeout(() => reject(new Error('Timeout of 5s exceeded')), 5000);
         });
         delete callbacks[id];
         return result;
     }
+    checkBridge();
     chart = Highcharts[stock ? 'stockChart' : 'chart']('container', config);
 }`;
 
